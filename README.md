@@ -41,68 +41,192 @@ A full-stack, enterprise-grade store rating and administrative governance platfo
 |---|---|
 | **Frontend** | React 19, Vite, React Router DOM, Axios, Lucide Icons, Pure CSS Design System |
 | **Backend** | Node.js, Express 5, Sequelize 6 ORM |
-| **Database** | MySQL / MariaDB |
+| **Database** | MySQL 8.0 |
+| **Proxy & Gateway** | Nginx Alpine (Reverse Proxy & Static Web Server) |
+| **Containerization** | Docker, Docker Compose, Multi-stage builds |
 | **Auth & Security** | JSON Web Tokens (JWT), bcryptjs, express-validator |
 
 ---
 
-## 🚀 Getting Started
+## 🐳 Docker Production Setup (Recommended)
+
+The entire application stack (MySQL database, Express backend API, and Nginx-powered React SPA) is fully containerized with automated health checks, persistent data volumes, and internal Docker networking.
+
+### Architecture Overview
+- **`storerate-frontend`**: Nginx Alpine container serving the production React 19 bundle and reverse-proxying `/api` requests to `http://backend:5000`.
+- **`storerate-backend`**: Node 18 Alpine container running Express 5, listening internally on port 5000 and connecting to MySQL via Docker DNS `mysql:3306`.
+- **`storerate-mysql`**: MySQL 8.0 container isolated from host ports, backed by a persistent named volume `mysql_data`.
+- **`storerate-network`**: Dedicated Docker bridge network for secure inter-service communication.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+### 1. Configure Environment Variables
+Copy `.env.example` to `.env` in the root directory:
+```bash
+cp .env.example .env
+```
+Default ports and credentials:
+```env
+FRONTEND_PORT=80
+BACKEND_PORT=5001
+DB_HOST=mysql
+DB_PORT=3306
+DB_NAME=storerate_db
+DB_USER=storerate_user
+DB_PASSWORD=storerate_password
+MYSQL_ROOT_PASSWORD=root_password
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production_2024
+JWT_EXPIRES_IN=24h
+```
+
+### 2. Build and Start the Stack
+From the project root (`R:\Project 1`), run:
+```bash
+docker compose up -d --build
+```
+
+### 3. Verify Container Status
+Check that all three containers are healthy:
+```bash
+docker compose ps
+```
+Expected output:
+```text
+NAME                 IMAGE               STATUS                    PORTS
+storerate-backend    project1-backend    Up (healthy)              0.0.0.0:5001->5000/tcp
+storerate-frontend   project1-frontend   Up (healthy)              0.0.0.0:80->80/tcp
+storerate-mysql      mysql:8.0           Up (healthy)              3306/tcp
+```
+
+### 4. Access URLs
+- **Frontend Web App**: [http://localhost](http://localhost) (Port 80)
+- **Login Page**: [http://localhost/login](http://localhost/login)
+- **API (Proxied through Nginx)**: [http://localhost/api/health](http://localhost/api/health)
+- **Backend Direct Access**: [http://localhost:5001/api/health](http://localhost:5001/api/health)
+
+### 5. Managing the Compose Stack
+- **View Live Logs**:
+  ```bash
+  docker compose logs -f
+  # Or inspect a specific service:
+  docker compose logs -f backend
+  ```
+- **Stop Containers** (Preserves MySQL database data volume):
+  ```bash
+  docker compose down
+  ```
+- **Restart Stack**:
+  ```bash
+  docker compose restart
+  ```
+
+### 6. Troubleshooting Port Conflicts
+If port `80` or `5001` is already in use on your host machine:
+1. Open the root `.env` file.
+2. Change the host port mapping (e.g., `FRONTEND_PORT=8080`, `BACKEND_PORT=5002`).
+3. Re-run `docker compose up -d`.
+
+---
+
+## ☁️ Cloud Server Deployment Guide (AWS, DigitalOcean, Linode, GCP)
+
+Deploying StoreRate to a Linux cloud instance (Ubuntu/Debian) with Docker Compose:
+
+### 1. Provision Cloud Server & Firewall
+Ensure your VPS security group or firewall (`ufw`) allows ports:
+- **SSH**: Port `22`
+- **HTTP**: Port `80`
+- **HTTPS**: Port `443`
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+### 2. Install Docker & Compose on the Server
+```bash
+# Update packages and install Docker
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+# Log out and log back in for group changes to take effect
+```
+
+### 3. Clone Repository & Configure Environment
+```bash
+git clone https://github.com/RohanRathodOnline/StoreRate.git
+cd StoreRate
+
+# Create production environment file from template
+cp .env.example .env
+```
+
+### 4. Generate Production Secrets
+Generate a cryptographically secure 64-character hex string for `JWT_SECRET`:
+```bash
+openssl rand -hex 32
+```
+Edit `.env` using `nano .env` and update:
+- `JWT_SECRET`: Your generated hex key
+- `DB_PASSWORD`: Strong unique database password
+- `MYSQL_ROOT_PASSWORD`: Strong unique root password
+- `CORS_ORIGIN`: Your public domain (e.g. `https://yourdomain.com`)
+- `ADMIN_EMAIL` & `ADMIN_PASSWORD`: Your custom administrator credentials
+
+### 5. Launch Application
+```bash
+docker compose up -d --build
+```
+Verify all containers report `healthy`:
+```bash
+docker compose ps
+```
+
+### 6. SSL / HTTPS Termination (Recommended)
+To secure the public endpoint with free SSL certificates from Let's Encrypt:
+- **Option A (Cloudflare):** Point your domain DNS to the server IP and set Cloudflare SSL/TLS to "Full".
+- **Option B (Certbot Reverse Proxy):** Install Certbot on the host or place Nginx Proxy Manager / Traefik in front of port 80.
+
+---
+
+## 💻 Local Development Setup (Without Docker)
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [MySQL](https://www.mysql.com/) or [XAMPP](https://www.apachefriends.org/)
-
----
+- [MySQL](https://www.mysql.com/) or [XAMPP](https://www.apachefriends.org/) running locally on port 3306/3307
 
 ### Backend Setup
-
 1. Navigate to the backend folder:
    ```bash
    cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
    npm install
    ```
-
-3. Configure your environment variables in `.env`:
+2. Configure `backend/.env`:
    ```env
    PORT=5000
    DB_HOST=localhost
-   DB_PORT=3306
+   DB_PORT=3307
    DB_USER=root
-   DB_PASS=
-   DB_NAME=storerate_db
+   DB_PASSWORD=
+   DB_NAME=store_rating_app
    JWT_SECRET=your_jwt_secret_key_here
    ```
-
-4. Initialize the database and start the server:
+3. Start the server:
    ```bash
    node server.js
    ```
-   *The database schema and tables will be synchronized automatically via Sequelize on startup.*
-
----
 
 ### Frontend Setup
-
-1. Open a new terminal and navigate to the frontend folder:
+1. Navigate to the frontend folder:
    ```bash
    cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
    npm install
-   ```
-
-3. Start the Vite development server:
-   ```bash
    npm run dev
    ```
-
-4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+2. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
@@ -110,7 +234,15 @@ A full-stack, enterprise-grade store rating and administrative governance platfo
 
 The backend includes a comprehensive 38-scenario automated test suite verifying all business rules, role authorizations, validation constraints, and database transactions:
 
-```bash
+### Run Tests Against Docker Stack:
+```powershell
+cd backend
+$env:API_BASE="http://localhost/api"
+node test_all_38_scenarios.js
+```
+
+### Run Tests Against Local Dev Server:
+```powershell
 cd backend
 node test_all_38_scenarios.js
 ```
@@ -123,7 +255,7 @@ All 38 test suites pass with 100% coverage across authentication, admin privileg
 
 | Role | Email | Password |
 |---|---|---|
-| **System Admin** | `admin@storerate.com` | `Admin@123` |
+| **System Admin** | `admin@storerating.com` | `Admin@123` |
 | **Normal User** | `shopper@storerate.com` | `Shopper@123` |
 | **Store Owner** | `owner@storerate.com` | `Owner@123` |
 

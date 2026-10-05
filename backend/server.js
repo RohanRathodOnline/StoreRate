@@ -12,9 +12,27 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+const allowedOrigins = process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*'
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
+  : ['http://localhost:5173', 'http://localhost', 'http://localhost:80', 'http://localhost:5001'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || !allowedOrigins || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || origin.startsWith('http://localhost')) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Root info endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'StoreRate API is running' });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -38,14 +56,16 @@ const seedAdmin = async () => {
   try {
     const existingAdmin = await User.findOne({ where: { role: 'admin' } });
     if (!existingAdmin) {
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@storerating.com';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
       await User.create({
-        name: 'System Administrator User',
-        email: 'admin@storerating.com',
-        password: 'Admin@123',
+        name: 'System Admin',
+        email: adminEmail,
+        password: adminPassword,
         address: '123 Admin Street, Admin City',
         role: 'admin',
       });
-      console.log('Default admin created: admin@storerating.com / Admin@123');
+      console.log(`Default admin created: ${adminEmail} / ${adminPassword}`);
     }
   } catch (error) {
     console.error('Error seeding admin:', error);
