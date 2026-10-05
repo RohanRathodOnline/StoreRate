@@ -12,17 +12,38 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const allowedOrigins = process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*'
-  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-  : ['http://localhost:5173', 'http://localhost', 'http://localhost:80', 'http://localhost:5001'];
+const defaultDevOrigins = [
+  'http://localhost:5173',
+  'http://localhost',
+  'http://localhost:80',
+  'http://localhost:5001',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1',
+];
+
+const configuredOrigins = process.env.CORS_ORIGIN && process.env.CORS_ORIGIN !== '*'
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean)
+  : [];
+
+const allowedOrigins = [...new Set([...defaultDevOrigins, ...configuredOrigins])];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || !allowedOrigins || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || origin.startsWith('http://localhost')) {
-      callback(null, true);
-    } else {
-      callback(null, true);
+    // Allow non-browser requests (e.g. mobile apps, curl, server-to-server) where origin is undefined
+    if (!origin) {
+      return callback(null, true);
     }
+    const cleanOrigin = origin.replace(/\/$/, '');
+    if (
+      allowedOrigins.includes(cleanOrigin) ||
+      cleanOrigin.startsWith('http://localhost:') ||
+      cleanOrigin.startsWith('http://127.0.0.1:') ||
+      cleanOrigin === 'http://localhost' ||
+      cleanOrigin === 'http://127.0.0.1'
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
 }));
