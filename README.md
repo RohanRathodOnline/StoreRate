@@ -131,3 +131,101 @@ All 38 test suites pass with 100% coverage across authentication, admin privileg
 
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).
+
+# StoreRate — Store Rating Platform
+
+StoreRate is a full-stack web application that allows users to browse registered stores and submit ratings from **1 to 5**.
+
+The application uses a **single login system with role-based access control (RBAC)** for three user roles:
+
+- System Administrator
+- Normal User
+- Store Owner
+
+---
+
+## Features
+
+### System Administrator
+
+The System Administrator can:
+
+- Log in to the platform
+- View dashboard statistics:
+  - Total number of users
+  - Total number of stores
+  - Total number of submitted ratings
+- Add new stores
+- Add new normal users
+- Add new admin users
+- View all registered stores
+- View normal users and administrators
+- Search and filter users and stores
+- View user details
+- View a Store Owner's store rating
+- Sort supported table fields
+- Log out
+
+### Normal User
+
+Normal users can:
+
+- Sign up
+- Log in
+- Update their password
+- View all registered stores
+- Search stores by name and address
+- View:
+  - Store Name
+  - Address
+  - Overall Rating
+  - User's Submitted Rating
+- Submit a rating from 1 to 5
+- Modify their submitted rating
+- Log out
+
+### Store Owner
+
+Store Owners can:
+
+- Log in
+- Update their password
+- View their store's average rating
+- View users who submitted ratings for their store
+- Log out
+
+---
+
+## User Roles
+
+| Role | Functionality |
+|---|---|
+| System Administrator | Manage users, stores and platform data |
+| Normal User | Browse stores and submit/modify ratings |
+| Store Owner | View store ratings and users who rated |
+
+---
+
+## Application Architecture
+
+```text
+React 19 Frontend
+       |
+       | Axios + REST API
+       | JWT Bearer Token
+       v
+Express 5 Backend
+       |
+       +-- Authentication
+       |
+       +-- Validation
+       |
+       +-- Role-Based Authorization
+       |
+       +-- Controllers
+       |
+       v
+Sequelize ORM
+       |
+       v
+MySQL / MariaDB
